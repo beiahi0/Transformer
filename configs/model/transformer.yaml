@@ -1,0 +1,12 @@
+# configs/model/transformer.yaml
+
+_target_: src.models.transformer_lit_model.TransformerLitModel
+
+# --- 传入 __init__ 的参数 ---
+d_model: 128
+n_layers: 4
+n_heads: 4
+d_ff: 512
+dropout: 0.1
+lr: 3e-4
+max_len: 5000

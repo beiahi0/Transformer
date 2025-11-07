@@ -1,0 +1,8 @@
+# configs/data/iwslt2017.yaml
+_target_: src.data.iwslt2017_datamodule.IWSLTDataModule
+
+# data_dir: ${paths.data_dir} # 从根配置中获取 data 路径
+batch_size: 32 # [cite: 80]
+# vocab_size: 30000
+num_workers: 4
+# pin_memory: True

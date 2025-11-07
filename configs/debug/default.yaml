@@ -32,4 +32,4 @@ trainer:
 
 data:
   num_workers: 0 # debuggers don't like multiprocessing
-  pin_memory: False # disable gpu memory pin
+  # pin_memory: False # disable gpu memory pin
