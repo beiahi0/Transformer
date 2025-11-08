@@ -21,6 +21,7 @@ class TransformerLitModel(LightningModule):
         dropout: float = 0.1,
         lr: float = 3e-4,  #
         max_len: int = 5000,
+        use_positional_encoding=True,
     ):
         super().__init__()
         # 保存超参数，自动记录
@@ -39,7 +40,6 @@ class TransformerLitModel(LightningModule):
         #     dropout=dropout,
         # )
 
-        # 损失函数，忽略 padding
         self.criterion = nn.CrossEntropyLoss(ignore_index=self.pad_idx)
 
         self.val_bleu = BLEUScore(n_gram=4, smooth=True)
@@ -60,6 +60,7 @@ class TransformerLitModel(LightningModule):
             d_ff=self.hparams.d_ff,
             dropout=self.hparams.dropout,
             max_len=self.hparams.max_len,
+            use_positional_encoding=self.hparams.use_positional_encoding,
         )
 
     def forward(self, src, tgt, src_mask, tgt_mask):
@@ -155,6 +156,8 @@ class TransformerLitModel(LightningModule):
         eos_idx = datamodule.EOS_IDX
         pad_idx = datamodule.PAD_IDX
 
+        vocab_de = datamodule.vocab_de
+
         src = batch["src"]
         tgt = batch["tgt"]
         src_mask = self.model.create_src_mask(src, self.pad_idx)
@@ -164,12 +167,20 @@ class TransformerLitModel(LightningModule):
         pred_strings = self._decode_batch_to_strings(
             pred_indices, vocab_en, bos_idx, eos_idx, pad_idx
         )
-        ref_strings_list = [
-            [s]
-            for s in self._decode_batch_to_strings(
-                tgt, vocab_en, bos_idx, eos_idx, pad_idx
-            )
-        ]
+
+        # --- 修改：同时获取解码后的参考译文列表 ---
+        ref_strings = self._decode_batch_to_strings(
+            tgt, vocab_en, bos_idx, eos_idx, pad_idx
+        )
+        ref_strings_list = [[s] for s in ref_strings]
+        # ---------------------------------------
+
+        # ref_strings_list = [
+        #     [s]
+        #     for s in self._decode_batch_to_strings(
+        #         tgt, vocab_en, bos_idx, eos_idx, pad_idx
+        #     )
+        # ]
 
         self.test_bleu.update(pred_strings, ref_strings_list)
         self.log(
@@ -179,7 +190,54 @@ class TransformerLitModel(LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
+
+        # --- !!! 新增：在第一个 batch 打印样本 !!! ---
+        if batch_idx == 0:
+            # 解码源句（德语）
+            src_strings = self._decode_batch_to_strings(
+                src, vocab_de, bos_idx, eos_idx, pad_idx
+            )
+
+            # 打印 5 个样本（或当前 batch 的大小，以较小者为准）
+            num_examples = min(5, len(src_strings))
+
+            print("\n" + "=" * 50)
+            print(f"           TRANSLATION SAMPLES (Batch {batch_idx})")
+            print("=" * 50 + "\n")
+
+            for i in range(num_examples):
+                print(f"--- SAMPLE {i+1} ---")
+                print(f"  [SOURCE (de)]  {src_strings[i]}")
+                print(f"  [TARGET (en)]  {ref_strings[i]}")
+                print(f"  [PREDICTION]   {pred_strings[i]}\n")
+
+            print("=" * 50)
+        # --- 打印逻辑结束 ---
+
         return loss
+
+    # --- !!! 新增：PREDICT_STEP !!! ---
+    def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        """
+        Lightning 的 trainer.predict() 会调用的方法。
+        """
+        # 1. 获取数据
+        src = batch["src"]
+        tgt = batch["tgt"]  # 我们也返回它，用于对比
+
+        # 2. 获取特殊 tokens
+        # (假设 datamodule 已经 setup 过了)
+        datamodule = self.trainer.datamodule
+        pad_idx = datamodule.PAD_IDX
+
+        # 3. 创建掩码并运行贪心解码
+        src_mask = self.model.create_src_mask(src, pad_idx)
+        with torch.no_grad():
+            pred_indices = self.greedy_decode(src, src_mask, max_len=50)
+
+        # 4. 返回一个字典，包含所有需要的信息
+        # trainer.predict() 会将所有 batch 的这些字典收集到一个列表中
+        return {"src": src, "tgt": tgt, "pred": pred_indices}
 
     # --- !!! 新增方法：贪心解码 (Greedy Decode) !!! ---
     def greedy_decode(self, src, src_mask, max_len: int):

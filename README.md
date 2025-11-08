@@ -5,13 +5,10 @@
 ## 硬件要求
 GPU: 强烈推荐使用 NVIDIA GPU 进行训练。
 
-GPU 显存 (VRAM): 我们的模型（d_model=128, 2层）非常小，在 batch_size=32 时，>= 6GB 显存即可满足训练需求（推荐 8GB+）。
-
-系统内存 (RAM): >= 16GB（用于加载和预处理 IWSLT 2017 数据集）。
+GPU 显存 (VRAM): 我们的模型（d_model=128, 2层），在 batch_size=32 时，>= 6GB 显存即可满足训练需求（推荐 8GB+）。
 
 ##  环境设置
 克隆本仓库：
-
 
 ```bash
 
@@ -47,5 +44,7 @@ python -m spacy download en_core_web_sm
 
 # 运行训练
 ```bash
-python src/train.py 
+python src/train.py trainer=ddp deterministic=True 
 ```
+
+trainer可选，ddp，cpu

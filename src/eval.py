@@ -6,6 +6,8 @@ from lightning import LightningDataModule, LightningModule, Trainer
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
 
+import torch
+
 rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 # ------------------------------------------------------------------------------------ #
 # the setup_root above is equivalent to:
@@ -72,17 +74,28 @@ def evaluate(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         log_hyperparameters(object_dict)
 
     log.info("Starting testing!")
+
     trainer.test(model=model, datamodule=datamodule, ckpt_path=cfg.ckpt_path)
+
+    # 获取测试指标
+    metric_dict = trainer.callback_metrics
 
     # for predictions use trainer.predict(...)
     # predictions = trainer.predict(model=model, dataloaders=dataloaders, ckpt_path=cfg.ckpt_path)
 
-    metric_dict = trainer.callback_metrics
+    # -------------------------------------------------------------------------------- #
+    # |                       <--- !!! 更新后的代码开始 !!! --->                       |
+    # |         我们现在使用 trainer.predict() 来获取用于打印的样本。                    |
+    # -------------------------------------------------------------------------------- #
+
+    log.info("Running prediction step to generate translation samples...")
 
     return metric_dict, object_dict
 
 
-@hydra.main(version_base="1.3", config_path="../configs", config_name="eval.yaml")
+@hydra.main(
+    version_base="1.3", config_path="../configs", config_name="eval.yaml"
+)
 def main(cfg: DictConfig) -> None:
     """Main entry point for evaluation.
 

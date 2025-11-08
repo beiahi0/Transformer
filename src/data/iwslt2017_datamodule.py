@@ -212,3 +212,12 @@ class IWSLTDataModule(LightningDataModule):
             collate_fn=self.collate_fn,
             num_workers=self.num_workers,
         )
+
+    def predict_dataloader(self):
+        return DataLoader(
+            self.data_test,
+            batch_size=self.batch_size,
+            shuffle=False,
+            collate_fn=self.collate_fn,
+            num_workers=self.num_workers,
+        )

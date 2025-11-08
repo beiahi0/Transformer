@@ -155,6 +155,7 @@ class Encoder(nn.Module):
         d_ff: int,
         dropout: float,
         max_len: int,
+        use_positional_encoding: True,
     ):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, d_model)
@@ -167,10 +168,13 @@ class Encoder(nn.Module):
         )
         self.norm = nn.LayerNorm(d_model)
         self.d_model = d_model
+        self.use_positional_encoding = use_positional_encoding
 
     def forward(self, x, mask):
         x = self.embedding(x) * math.sqrt(self.d_model)
-        x = self.pos_encoder(x)
+
+        if self.use_positional_encoding:
+            x = self.pos_encoder(x)
         for layer in self.layers:
             x = layer(x, mask)
         return self.norm(x)
@@ -186,6 +190,7 @@ class Decoder(nn.Module):
         d_ff: int,
         dropout: float,
         max_len: int,
+        use_positional_encoding: True,
     ):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, d_model)
@@ -199,9 +204,12 @@ class Decoder(nn.Module):
         self.norm = nn.LayerNorm(d_model)
         self.d_model = d_model
 
+        self.use_positional_encoding = use_positional_encoding  # <--- 2. 保存它
+
     def forward(self, x, encoder_output, src_mask, tgt_mask):
         x = self.embedding(x) * math.sqrt(self.d_model)
-        x = self.pos_encoder(x)
+        if self.use_positional_encoding:
+            x = self.pos_encoder(x)
         for layer in self.layers:
             x = layer(x, encoder_output, src_mask, tgt_mask)
         return self.norm(x)
@@ -220,13 +228,28 @@ class Transformer(nn.Module):
         d_ff: int = 2048,
         dropout: float = 0.1,
         max_len: int = 5000,
+        use_positional_encoding: bool = True,
     ):
         super().__init__()
         self.encoder = Encoder(
-            src_vocab_size, d_model, n_layers, n_heads, d_ff, dropout, max_len
+            src_vocab_size,
+            d_model,
+            n_layers,
+            n_heads,
+            d_ff,
+            dropout,
+            max_len,
+            use_positional_encoding,
         )
         self.decoder = Decoder(
-            tgt_vocab_size, d_model, n_layers, n_heads, d_ff, dropout, max_len
+            tgt_vocab_size,
+            d_model,
+            n_layers,
+            n_heads,
+            d_ff,
+            dropout,
+            max_len,
+            use_positional_encoding,
         )
         self.final_linear = nn.Linear(d_model, tgt_vocab_size)
         self._initialize_weights()
