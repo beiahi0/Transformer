@@ -47,4 +47,12 @@ python -m spacy download en_core_web_sm
 python src/train.py trainer=ddp deterministic=True 
 ```
 
-trainer可选，ddp，cpu
+# 运行测试
+
+
+```bash
+python src/eval.py ckpt_path=<your model path>
+```
+
+trainer可选，ddp，cpu, gpu
+
